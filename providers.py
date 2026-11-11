@@ -36,10 +36,19 @@ class Provider:
         if not model:
             raise ValueError('Cần đặt MODEL là model có hỗ trợ tool calling.')
         self.name, self.model = name, model
-        key_name, self.url = CONFIG[name]
+        key_name, default_url = CONFIG[name]
+        openai_compatible_url = os.getenv('OPENAI_BASE_URL') if name == 'openai' else None
+        if openai_compatible_url:
+            endpoint = openai_compatible_url.rstrip('/')
+            self.url = endpoint if endpoint.endswith('/chat/completions') else endpoint + '/chat/completions'
+        else:
+            self.url = default_url
         self.key = os.getenv(key_name)
+        if name == 'openai' and openai_compatible_url and not self.key:
+            self.key = os.getenv('NVIDIA_API_KEY')
         if not self.key:
-            raise ValueError(f'Thiếu {key_name}; xem README.md.')
+            expected_key = 'OPENAI_API_KEY hoặc NVIDIA_API_KEY' if name == 'openai' and openai_compatible_url else key_name
+            raise ValueError(f'Thiếu {expected_key}; xem README.md.')
 
     def complete(self, messages, schemas):
         if self.name == 'anthropic':
